@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+spec:
+  replicas: 3  # Set the desired number of Kafka broker nodes
+  serviceName: kafka  # Headless service for DNS-based service discovery
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      containers:
+      - name: kafka
+        image: confluentinc/cp-kafka:latest  # Use your desired Kafka image
+        ports:
+        - containerPort: 9092
+        env:
+        - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+          value: "PLAINTEXT:PLAINTEXT"
+        - name: KAFKA_ADVERTISED_LISTENERS
+          value: "PLAINTEXT://$(POD_IP):9092"  # Use the POD_IP to advertise the listener
+        - name: KAFKA_ZOOKEEPER_CONNECT
+          value: "zookeeper:2181"  # Reference the ZooKeeper service
+        - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+          value: "true"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-external
+spec:
+  ports:
+  - port: 9092
+  selector:
+    app: kafka
+  type: LoadBalancer  
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-internal
+spec:
+  clusterIP: None  # Headless service with no Cluster IP
+  ports:
+  - port: 9092
+  selector:
+    app: kafka
